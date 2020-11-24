@@ -2,21 +2,26 @@
 
 #include <chrono>
 #include <cstdint>
+#include <iostream>
 #include <random>
 #include <stack>
 #include <utility>
-#include <iostream>
 
 using std::pair;
 
+/**
+ * @brief  Randomly generates a body of water in the grid
+ *         relative to the size of the grid
+ */
 void Environment::generateWater() {
     size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937 generator(seed);
-    size_t randRow = generator() % size;
-    size_t randCol = generator() % size;
-    grid[randRow][randCol] = 1;  // set to water
+    const size_t gridSize = grid.size();
+    size_t randRow = generator() % gridSize;
+    size_t randCol = generator() % gridSize;
+    grid[randRow][randCol] = Water;
 
-    size_t maxWaterTiles = size / 4 * size;
+    size_t maxWaterTiles = gridSize / 4 * gridSize;
 
     pair<size_t, size_t> start(randRow, randCol);
     std::stack<pair<size_t, size_t>> waterStack;
@@ -34,8 +39,10 @@ void Environment::generateWater() {
         vector<pair<size_t, size_t>> neighbors;
         neighbors.reserve(4);
         for (const auto &offset : offsets) {
-            pair<size_t, size_t> neighbor(current.first + offset.first, current.second + offset.second);
-            if (grid[neighbor.first][neighbor.second] == 0) {
+            size_t neighborRow = wrapGridIndex(current.first + offset.first);
+            size_t neighborCol = wrapGridIndex(current.second + offset.second);
+            pair<size_t, size_t> neighbor(neighborRow, neighborCol);
+            if (grid[neighbor.first][neighbor.second] == Land) {
                 neighbors.push_back(neighbor);
             }
         }
@@ -43,16 +50,38 @@ void Environment::generateWater() {
             waterStack.pop();
             continue;
         }
+
+        // randomly pick a neighbor to add to stack
         size_t randIndex = generator() % neighbors.size();
         pair<size_t, size_t> &neighbor = neighbors[randIndex];
-        grid[neighbor.first][neighbor.second] = 1;  // set to water
+        grid[neighbor.first][neighbor.second] = Water;
         waterStack.push(neighbor);
 
         --maxWaterTiles;
     }
 }
 
+/**
+ * @brief  Randomly places grass on the grid. Amount is relative
+ *         to grid size
+ */
+void Environment::generateGrass() {
+    // maybe generate random coordinates to change to grass
+    // instead of looping through all coordinates
+    size_t seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 generator(seed);
+    for (auto &row : grid) {
+        for (auto &tile : row) {
+            if (tile == Land && generator() % 10 < 4) {
+                tile = Grass;
+            }
+        }
+    }
+}
 
+/**
+ * @brief  Outputs a visual representation of the environment grid
+ */
 void Environment::printGrid() const {
     for (const auto &row : grid) {
         for (const auto &val : row) {
